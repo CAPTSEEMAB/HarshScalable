@@ -361,99 +361,23 @@ GET & /api/v1/external/countries & Countries API \\
 
 \subsection{Parallel Processing Implementation}
 
-The core parallel processing is implemented using Python's concurrent.futures module:
-
-\begin{lstlisting}[language=Python, caption={BatchProcessor Implementation}]
-class BatchProcessor:
-    def __init__(self, max_workers=None, 
-                 use_processes=False):
-        self.max_workers = max_workers or \
-            multiprocessing.cpu_count()
-        self.use_processes = use_processes
-    
-    def process_batch(self, items, 
-                      processor_func):
-        ExecutorClass = ProcessPoolExecutor \
-            if self.use_processes \
-            else ThreadPoolExecutor
-        
-        with ExecutorClass(
-            max_workers=self.max_workers
-        ) as executor:
-            future_to_item = {
-                executor.submit(
-                    processor_func, item
-                ): item for item in items
-            }
-            
-            for future in as_completed(
-                future_to_item
-            ):
-                result = future.result(
-                    timeout=60
-                )
-                results.append(result)
-        
-        return {
-            'results': results,
-            'items_per_second': 
-                len(items) / duration
-        }
-\end{lstlisting}
+The core parallel processing is implemented using Python's concurrent.futures module. The BatchProcessor class initializes with configurable worker count (defaulting to CPU count) and supports both ThreadPoolExecutor for I/O-bound tasks and ProcessPoolExecutor for CPU-bound tasks. The process\_batch method submits all items to the executor pool, collects results as they complete using the as\_completed function, and returns statistics including total results, errors, duration, and items processed per second.
 
 \subsection{SQS Consumer with Parallel Processing}
 
-\begin{lstlisting}[language=Python, caption={SQS Consumer Implementation}]
-class ParallelSQSConsumer:
-    def consume_batch(self, max_messages=10):
-        response = self.sqs.receive_message(
-            QueueUrl=self.queue_url,
-            MaxNumberOfMessages=max_messages
-        )
-        
-        with ThreadPoolExecutor(
-            max_workers=self.max_workers
-        ) as executor:
-            futures = {
-                executor.submit(
-                    self._process_message, msg
-                ): msg for msg in messages
-            }
-\end{lstlisting}
+The ParallelSQSConsumer class receives messages from SQS queues in batches (up to 10 messages per request) and processes them concurrently using ThreadPoolExecutor. Each message is submitted to the executor pool, and results are collected as futures complete. Failed messages are automatically returned to the queue for retry, while successfully processed messages are deleted.
 
 \subsection{External API Services}
 
-\begin{lstlisting}[language=Python, caption={External API Implementation}]
-class WeatherService:
-    BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
-    
-    def get_weather(self, city):
-        response = requests.get(
-            f"{self.BASE_URL}?q={city}"
-            f"&appid={self.api_key}"
-        )
-        return {
-            'city': city,
-            'temperature': 
-                data['main']['temp'] - 273.15,
-            'description': 
-                data['weather'][0]['description'],
-            'source': 'openweathermap.org'
-        }
+Three external API service classes are implemented:
 
-class CurrencyExchangeService:
-    BASE_URL = "https://v6.exchangerate-api.com/v6"
-    
-    def get_exchange_rate(self, from_curr, 
-                          to_curr, amount):
-        return {
-            'from_currency': from_curr,
-            'to_currency': to_curr,
-            'converted_amount': amount * rate,
-            'exchange_rate': rate,
-            'source': 'exchangerate-api.com'
-        }
-\end{lstlisting}
+\begin{itemize}
+    \item \textbf{WeatherService}: Connects to OpenWeatherMap API to retrieve weather data including temperature (converted from Kelvin to Celsius), humidity, and weather descriptions for specified cities.
+    \item \textbf{CurrencyExchangeService}: Connects to ExchangeRate-API to retrieve real-time exchange rates and perform currency conversions between any supported currency pairs.
+    \item \textbf{RESTCountriesService}: Connects to RestCountries API to retrieve country information including capital, population, region, and currency data.
+\end{itemize}
+
+All services include error handling, timeout protection, and return standardized response formats with source attribution.
 
 \subsection{Key Implementation Differences}
 
@@ -488,31 +412,14 @@ HarshScalable implements a complete CI/CD pipeline for automated development, te
 
 \subsection{Deployment Process}
 
-\begin{lstlisting}[caption={Deployment Commands}]
-# Build frontend
-cd frontend && npm run build
+The deployment process consists of four main stages:
 
-# Package Lambda with dependencies
-cd backend
-pip install -r requirements.txt -t dist/
-cp backend-lambda.py dist/lambda_function.py
-cd dist && zip -r ../lambda-package.zip .
-
-# Deploy Lambda
-aws lambda update-function-code \
-  --function-name HarshScalable-inventory-api \
-  --zip-file fileb://lambda-package.zip
-
-# Deploy frontend to S3
-aws s3 sync frontend/dist \
-  s3://inventory-frontend-prod-1773829508 \
-  --delete
-
-# Invalidate CloudFront (if applicable)
-aws cloudfront create-invalidation \
-  --distribution-id DISTRIBUTION_ID \
-  --paths "/*"
-\end{lstlisting}
+\begin{enumerate}
+    \item \textbf{Frontend Build}: The React application is built using Vite, which compiles TypeScript, bundles assets, and generates optimized production files in the dist directory.
+    \item \textbf{Lambda Packaging}: Python dependencies are installed into a deployment directory, the Lambda handler is copied, and everything is zipped into a deployment package.
+    \item \textbf{Lambda Deployment}: The AWS CLI updates the Lambda function code with the new deployment package, enabling zero-downtime updates.
+    \item \textbf{Frontend Deployment}: The built frontend files are synced to the S3 bucket with the delete flag to remove obsolete files, and CloudFront cache is invalidated if applicable.
+\end{enumerate}
 
 \subsection{Deployed Application URLs}
 
@@ -581,23 +488,7 @@ Messages are consumed in parallel batches with automatic retry and dead-letter q
 
 \subsection{Async/Await Pattern}
 
-\begin{lstlisting}[language=Python, caption={Async Batch Processing}]
-async def process_batch_async(self, items, 
-                              processor_func):
-    loop = asyncio.get_event_loop()
-    tasks = [
-        loop.run_in_executor(
-            self._executor, 
-            processor_func, 
-            item
-        ) for item in items
-    ]
-    results = await asyncio.gather(
-        *tasks, 
-        return_exceptions=True
-    )
-    return results
-\end{lstlisting}
+The system also supports asynchronous batch processing using Python's asyncio module. The process\_batch\_async method creates an event loop and submits processing tasks to an executor using run\_in\_executor. All tasks are gathered concurrently using asyncio.gather with return\_exceptions=True to handle failures gracefully without stopping the entire batch. This pattern is particularly useful for I/O-bound operations where waiting for external services can be parallelized effectively.
 
 \subsection{Future Hadoop/Spark Integration}
 
