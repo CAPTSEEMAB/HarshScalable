@@ -199,18 +199,11 @@ HarshScalable implements a distributed, event-driven, serverless architecture de
 
 \subsection{System Architecture Overview}
 
-The system architecture consists of loosely coupled components communicating through well-defined interfaces. The general workflow is as follows:
+The system architecture consists of loosely coupled components communicating through well-defined interfaces. The frontend application (React SPA) provides users with interfaces for inventory management, analytics dashboards, and external API demonstrations. Every request is sent to Amazon API Gateway [1] which provides a secure entry point with request validation, throttling, and routing.
 
-\begin{itemize}
-    \item The frontend application (React SPA) provides users with interfaces for inventory management, analytics dashboards, and external API demonstrations.
-    \item Every request is sent to Amazon API Gateway [1] which provides a secure entry point with request validation, throttling, and routing.
-    \item The Lambda function [2] receives incoming requests, validates data, and processes operations.
-    \item For batch operations, the system uses ThreadPoolExecutor to process items in parallel rather than sequentially.
-    \item Asynchronous events are published to Amazon SQS [3] queues for decoupled processing.
-    \item Processed results are stored in Amazon DynamoDB [4] for scalable, low-latency data storage.
-    \item External API calls (Weather, Currency, Countries) are made concurrently to minimize response times.
-    \item The frontend is deployed on Amazon S3 with static website hosting.
-\end{itemize}
+The Lambda function [2] receives incoming requests, validates data, and processes operations. For batch operations, the system uses ThreadPoolExecutor to process items in parallel rather than sequentially. Asynchronous events are published to Amazon SQS [3] queues for decoupled processing.
+
+Processed results are stored in Amazon DynamoDB [4] for scalable, low-latency data storage. External API calls (Weather, Currency, Countries) are made concurrently to minimize response times. The frontend is deployed on Amazon S3 with static website hosting.
 
 \begin{figure}[!t]
 \centering
@@ -455,25 +448,11 @@ HarshScalable implements parallel and distributed processing to overcome scalabi
 
 \subsection{Data Parallelism}
 
-Data parallelism is implemented using ThreadPoolExecutor where batch operations are split across multiple workers:
-
-\begin{itemize}
-    \item Batch inventory operations processed concurrently
-    \item Default 10 workers for I/O-bound tasks
-    \item ProcessPoolExecutor available for CPU-bound tasks
-    \item Items per second metric tracks throughput
-\end{itemize}
+Data parallelism is implemented using ThreadPoolExecutor where batch operations are split across multiple workers. Batch inventory operations are processed concurrently with a default of 10 workers optimized for I/O-bound tasks. ProcessPoolExecutor is also available for CPU-bound tasks when needed. The system tracks throughput using an items-per-second metric to monitor performance.
 
 \subsection{Task Parallelism}
 
-Independent system operations execute concurrently:
-\begin{itemize}
-    \item API request validation
-    \item SQS message publishing
-    \item External API calls (Weather, Currency, Countries)
-    \item Database read/write operations
-    \item Notification processing
-\end{itemize}
+Independent system operations execute concurrently to maximize throughput. This includes API request validation, SQS message publishing, external API calls to Weather, Currency, and Countries services, database read/write operations, and notification processing. Each of these tasks operates independently, allowing the system to handle multiple operations simultaneously without blocking.
 
 \subsection{SQS-Based Event Processing}
 
@@ -492,14 +471,7 @@ The system also supports asynchronous batch processing using Python's asyncio mo
 
 \subsection{Future Hadoop/Spark Integration}
 
-The architecture supports future integration with:
-\begin{itemize}
-    \item \textbf{Amazon EMR}: Large-scale batch analytics
-    \item \textbf{Hadoop MapReduce}: Distributed data processing
-    \item \textbf{Apache Spark}: In-memory analytics
-\end{itemize}
-
-Data stored in S3 is ready for EMR processing to generate inventory trend analysis, sales pattern recognition, and demand forecasting.
+The architecture supports future integration with Amazon EMR for large-scale batch analytics, Hadoop MapReduce for distributed data processing, and Apache Spark for in-memory analytics. Data stored in S3 is ready for EMR processing to generate inventory trend analysis, sales pattern recognition, and demand forecasting.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Testing and Results}
@@ -537,13 +509,7 @@ API Timeout Handling & PASSED & Timeout protection \\
 
 \subsection{Performance Metrics}
 
-\begin{itemize}
-    \item Health check response: < 100ms
-    \item Single inventory operation: < 200ms
-    \item Batch 100 items: $\sim$1.5 seconds
-    \item External API calls: < 500ms each
-    \item Parallel speedup: 10x vs sequential
-\end{itemize}
+The system achieves excellent performance across all operations. Health check responses complete in under 100ms, while single inventory operations respond in under 200ms. Batch processing of 100 items completes in approximately 1.5 seconds. External API calls to Weather, Currency, and Countries services each respond in under 500ms. Overall, parallel processing achieves a 10x speedup compared to sequential processing.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusions and Findings}
@@ -563,46 +529,17 @@ API Timeout Handling & PASSED & Timeout protection \\
 
 \subsection{Project Reflection}
 
-\textbf{Successes:}
-\begin{itemize}
-    \item Three-tier serverless architecture proved flexible and scalable
-    \item TypeScript maintained code consistency across frontend
-    \item Parallel processing achieved target 10x performance improvement
-    \item All 12 tests passed with 100\% success rate
-    \item External APIs integrated successfully with graceful fallbacks
-\end{itemize}
+\textbf{Successes:} The three-tier serverless architecture proved flexible and scalable throughout development and deployment. TypeScript maintained code consistency across the frontend codebase. Parallel processing achieved the target 10x performance improvement for batch operations. All 12 tests passed with a 100\% success rate, and external APIs were integrated successfully with graceful fallbacks for error handling.
 
-\textbf{Challenges Resolved:}
-\begin{itemize}
-    \item Lambda package size managed with selective dependency inclusion
-    \item CORS configuration for cross-origin API calls
-    \item Environment-based secret management for API keys
-\end{itemize}
+\textbf{Challenges Resolved:} Lambda package size was managed through selective dependency inclusion to stay within AWS limits. CORS configuration required careful setup for cross-origin API calls between the S3-hosted frontend and API Gateway backend. Environment-based secret management was implemented for API keys to avoid hardcoding sensitive credentials.
 
 \subsection{Future Improvements}
 
-\textbf{Short-term:}
-\begin{itemize}
-    \item Complete test coverage (80\%+) with pytest
-    \item Integration with Amazon EMR for Hadoop/Spark analytics
-    \item Redis caching layer for frequently accessed data
-    \item CloudWatch monitoring and alerting
-\end{itemize}
+\textbf{Short-term:} The immediate focus is on achieving complete test coverage (80\%+) with pytest, integrating with Amazon EMR for Hadoop/Spark analytics capabilities, adding a Redis caching layer for frequently accessed data, and implementing CloudWatch monitoring and alerting for production observability.
 
-\textbf{Architectural:}
-\begin{itemize}
-    \item Multi-region deployment for global availability
-    \item WebSocket support for real-time notifications
-    \item GraphQL API alongside REST endpoints
-\end{itemize}
+\textbf{Architectural:} Longer-term architectural improvements include multi-region deployment for global availability and reduced latency, WebSocket support for real-time notifications and live updates, and adding a GraphQL API alongside existing REST endpoints for more flexible data querying.
 
-\textbf{Features:}
-\begin{itemize}
-    \item Machine learning for demand forecasting
-    \item Advanced analytics dashboard with Recharts
-    \item Mobile application using React Native
-    \item Classmate API integration for enhanced functionality
-\end{itemize}
+\textbf{Features:} Planned feature enhancements include machine learning integration for demand forecasting and inventory optimization, an advanced analytics dashboard built with Recharts for data visualization, a mobile application using React Native for on-the-go access, and classmate API integration for enhanced collaborative functionality.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
