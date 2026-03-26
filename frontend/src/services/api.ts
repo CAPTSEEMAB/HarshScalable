@@ -137,3 +137,37 @@ export const notificationsAPI = {
   create: (data: { type: string; subject: string; message: string; action_url?: string }) =>
     api.post('/notifications', data),
 };
+
+// ---------- External Public APIs ----------
+export const externalAPI = {
+  // OpenWeatherMap integration
+  weather: (city?: string, warehouseId?: string) =>
+    api.get('/external/weather', { params: { city, warehouse_id: warehouseId } }),
+  
+  // Exchange Rate API integration  
+  currency: (base?: string, target?: string, amount?: number) =>
+    api.get('/external/currency', { params: { base, target, amount } }),
+  
+  // REST Countries API integration
+  countries: (name?: string, region?: string) =>
+    api.get('/external/countries', { params: { name, region } }),
+};
+
+// ---------- Batch Operations (Parallel Processing) ----------
+export const batchAPI = {
+  // Batch inventory operations - processed in parallel
+  inventory: (operations: Array<{
+    type: 'stock_in' | 'stock_out' | 'transfer';
+    product_id: string;
+    warehouse_id: string;
+    quantity: number;
+  }>) => api.post('/inventory/batch', { operations }),
+  
+  // Batch transactions - processed in parallel
+  transactions: (transactions: Array<{
+    type: 'sale' | 'purchase';
+    product_id: string;
+    quantity: number;
+    unit_price: number;
+  }>) => api.post('/transactions/batch', { transactions }),
+};

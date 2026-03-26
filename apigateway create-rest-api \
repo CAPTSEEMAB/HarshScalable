@@ -1,0 +1,39 @@
+{
+    "FunctionName": "HarshScalable-inventory-api",
+    "FunctionArn": "arn:aws:lambda:eu-west-1:669688919516:function:HarshScalable-inventory-api",
+    "Runtime": "python3.12",
+    "Role": "arn:aws:iam::669688919516:role/lambda-execution-role",
+    "Handler": "lambda_function.lambda_handler",
+    "CodeSize": 20946,
+    "Description": "",
+    "Timeout": 30,
+    "MemorySize": 256,
+    "LastModified": "2026-03-26T16:54:32.965+0000",
+    "CodeSha256": "I7jCnT0r+92XC0sr/4+VsiXMWcKNoV+a+DKYAKWgAlQ=",
+    "Version": "$LATEST",
+    "TracingConfig": {
+        "Mode": "PassThrough"
+    },
+    "RevisionId": "dd30abc2-6dab-4291-b4ba-6f4021c70e94",
+    "State": "Pending",
+    "StateReason": "The function is being created.",
+    "StateReasonCode": "Creating",
+    "PackageType": "Zip",
+    "Architectures": [
+        "x86_64"
+    ],
+    "EphemeralStorage": {
+        "Size": 512
+    },
+    "SnapStart": {
+        "ApplyOn": "None",
+        "OptimizationStatus": "Off"
+    },
+    "RuntimeVersionConfig": {
+        "RuntimeVersionArn": "arn:aws:lambda:eu-west-1::runtime:ffd8d8a0ee4551835e06b2706a3a0b06584e348ae2397a7414e9fda79f0976a0"
+    },
+    "LoggingConfig": {
+        "LogFormat": "Text",
+        "LogGroup": "/aws/lambda/HarshScalable-inventory-api"
+    }
+}

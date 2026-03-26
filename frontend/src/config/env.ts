@@ -47,7 +47,7 @@ function getConfig(): EnvironmentConfig {
   }
 
   // Production: Use environment variables or defaults
-  const apiBase = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8001';
+  const apiBase = (import.meta as any).env?.VITE_API_BASE_URL || 'https://e5v47xrvak.execute-api.eu-west-1.amazonaws.com/prod/api/v1';
   
   return {
     api_base: apiBase,

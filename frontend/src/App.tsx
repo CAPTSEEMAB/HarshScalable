@@ -11,6 +11,7 @@ import TransactionsPage from './pages/TransactionsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import ResourcesPage from './pages/ResourcesPage';
 import NotificationsPage from './pages/NotificationsPage';
+import ExternalApisPage from './pages/ExternalApisPage';
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/resources" element={<ResourcesPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/external-apis" element={<ExternalApisPage />} />
           </Route>
 
           {/* Default redirect */}

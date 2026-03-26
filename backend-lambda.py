@@ -3,10 +3,20 @@ import json
 import os
 import uuid
 import hashlib
+import random
+import requests
 from datetime import datetime, timedelta
 from decimal import Decimal
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-dynamodb = boto3.resource('dynamodb', region_name='eu-west-1')
+# AWS Configuration
+REGION = os.environ.get('AWS_REGION', 'eu-west-1')
+STOCK_EVENTS_QUEUE = os.environ.get('STOCK_EVENTS_QUEUE_URL', '')
+TRANSACTION_EVENTS_QUEUE = os.environ.get('TRANSACTION_EVENTS_QUEUE_URL', '')
+NOTIFICATION_EVENTS_QUEUE = os.environ.get('NOTIFICATION_EVENTS_QUEUE_URL', '')
+
+dynamodb = boto3.resource('dynamodb', region_name=REGION)
+sqs = boto3.client('sqs', region_name=REGION)
 auth_table = dynamodb.Table('AuthTable')
 analytics_table = dynamodb.Table('AnalyticsTable')
 
@@ -15,6 +25,37 @@ class DecimalEncoder(json.JSONEncoder):
         if isinstance(o, Decimal):
             return float(o)
         return super().default(o)
+
+
+# ============== Event Publishing (Async Processing) ==============
+
+def publish_event(queue_url: str, event: dict) -> bool:
+    """Publish event to SQS for async processing"""
+    if not queue_url:
+        return False
+    try:
+        event['timestamp'] = event.get('timestamp', now())
+        sqs.send_message(
+            QueueUrl=queue_url,
+            MessageBody=json.dumps(event),
+            MessageAttributes={
+                'EventType': {'DataType': 'String', 'StringValue': event.get('event_type', 'UNKNOWN')}
+            }
+        )
+        return True
+    except Exception as e:
+        print(f"Failed to publish event: {str(e)}")
+        return False
+
+def publish_stock_event(event_type: str, product_id: str, warehouse_id: str, quantity: int, **kwargs):
+    """Publish stock event for parallel processing"""
+    event = {'event_type': event_type, 'product_id': product_id, 'warehouse_id': warehouse_id, 'quantity': quantity, **kwargs}
+    publish_event(STOCK_EVENTS_QUEUE, event)
+
+def publish_transaction_event(event_type: str, transaction_id: str, product_id: str, quantity: int, total_amount: float, **kwargs):
+    """Publish transaction event for parallel processing"""
+    event = {'event_type': event_type, 'transaction_id': transaction_id, 'product_id': product_id, 'quantity': quantity, 'total_amount': total_amount, **kwargs}
+    publish_event(TRANSACTION_EVENTS_QUEUE, event)
 
 def lambda_handler(event, context):
     path = event.get('path', '')
@@ -32,16 +73,18 @@ def lambda_handler(event, context):
         elif '/products' in path and method == 'GET': return handle_list_products()
         elif '/products' in path and method == 'POST': return handle_create_product(event)
         elif '/categories' in path and method == 'GET': return handle_list_categories()
-        elif '/inventory/stock-in' in path: return ok({'message':'Stock added','transaction_id':str(uuid.uuid4())})
-        elif '/inventory/stock-out' in path: return ok({'message':'Stock removed','transaction_id':str(uuid.uuid4())})
-        elif '/inventory/transfer' in path: return ok({'message':'Stock transferred','transaction_id':str(uuid.uuid4())})
+        elif '/inventory/stock-in' in path: return handle_stock_in(event)
+        elif '/inventory/stock-out' in path: return handle_stock_out(event)
+        elif '/inventory/transfer' in path: return handle_stock_transfer(event)
+        elif '/inventory/batch' in path and method == 'POST': return handle_batch_inventory(event)
         elif '/inventory/history' in path: return ok({'history':[],'count':0})
         elif '/inventory' in path and method == 'GET': return handle_list_inventory()
         elif '/warehouses' in path and method == 'GET': return handle_list_warehouses()
         elif '/warehouses' in path and method == 'POST': return ok({'warehouse_id':str(uuid.uuid4()),'message':'Warehouse created'})
         elif '/transactions/history' in path: return handle_transaction_history()
-        elif '/transactions/purchase' in path: return ok({'transaction_id':str(uuid.uuid4()),'type':'purchase','status':'completed'})
-        elif '/transactions/sale' in path: return ok({'transaction_id':str(uuid.uuid4()),'type':'sale','status':'completed'})
+        elif '/transactions/purchase' in path: return handle_purchase(event)
+        elif '/transactions/sale' in path: return handle_sale(event)
+        elif '/transactions/batch' in path and method == 'POST': return handle_batch_transactions(event)
         elif '/transactions' in path and method == 'GET': return handle_transaction_history()
         elif '/analytics/dashboard' in path: return handle_analytics_dashboard()
         elif '/analytics/low-stock' in path: return handle_low_stock()
@@ -57,11 +100,258 @@ def lambda_handler(event, context):
         elif '/resources/vendor-search' in path: return ok({'results':[]})
         elif '/notifications' in path and method == 'GET': return handle_list_notifications()
         elif '/notifications' in path and method == 'POST': return handle_create_notification(event)
-        elif 'health' in path: return ok({'status':'healthy','timestamp':now()})
+        # External Public API Integrations
+        elif '/external/weather' in path: return handle_weather(event)
+        elif '/external/currency' in path: return handle_currency(event)
+        elif '/external/countries' in path: return handle_countries(event)
+        elif 'health' in path: return ok({'status':'healthy','timestamp':now(),'parallel_processing':'enabled','external_apis':['weather','currency','countries']})
         else: return ok({'message':f'Endpoint {path} received','method':method})
     except Exception as e:
         print(f"Error: {str(e)}")
         return err(str(e), 500)
+
+
+# ============== External Public API Handlers ==============
+
+def handle_weather(event):
+    """Handle weather API requests - integrates with OpenWeatherMap (Public API)"""
+    params = event.get('queryStringParameters', {}) or {}
+    city = params.get('city', 'New York')
+    warehouse_id = params.get('warehouse_id')
+    
+    # Warehouse locations mapping
+    warehouse_locations = {
+        'WH001': 'New York',
+        'WH002': 'Boston'
+    }
+    
+    if warehouse_id and warehouse_id in warehouse_locations:
+        city = warehouse_locations[warehouse_id]
+    
+    # Try to fetch real weather data (requires API key)
+    api_key = os.environ.get('OPENWEATHER_API_KEY', '')
+    
+    if api_key:
+        try:
+            response = requests.get(
+                f"https://api.openweathermap.org/data/2.5/weather",
+                params={'q': city, 'appid': api_key, 'units': 'metric'},
+                timeout=10
+            )
+            if response.ok:
+                data = response.json()
+                return ok({
+                    'city': data.get('name'),
+                    'country': data.get('sys', {}).get('country'),
+                    'temperature': data.get('main', {}).get('temp'),
+                    'humidity': data.get('main', {}).get('humidity'),
+                    'description': data.get('weather', [{}])[0].get('description'),
+                    'wind_speed': data.get('wind', {}).get('speed'),
+                    'source': 'openweathermap',
+                    'warehouse_id': warehouse_id
+                })
+        except Exception as e:
+            print(f"Weather API error: {str(e)}")
+    
+    # Fallback to mock data for demo
+    return ok({
+        'city': city,
+        'country': 'US',
+        'temperature': round(random.uniform(15, 28), 1),
+        'humidity': random.randint(40, 75),
+        'description': random.choice(['clear sky', 'partly cloudy', 'overcast']),
+        'wind_speed': round(random.uniform(2, 12), 1),
+        'source': 'mock_data',
+        'warehouse_id': warehouse_id,
+        'note': 'Set OPENWEATHER_API_KEY for real data'
+    })
+
+def handle_currency(event):
+    """Handle currency exchange API requests - integrates with exchangerate-api.com (Public API)"""
+    params = event.get('queryStringParameters', {}) or {}
+    base = params.get('base', 'USD')
+    target = params.get('target', 'EUR')
+    amount = float(params.get('amount', 100))
+    
+    try:
+        # Free public API - no key required
+        response = requests.get(
+            f"https://api.exchangerate-api.com/v4/latest/{base}",
+            timeout=10
+        )
+        if response.ok:
+            data = response.json()
+            rate = data.get('rates', {}).get(target, 1.0)
+            converted = round(amount * rate, 2)
+            
+            return ok({
+                'from_currency': base,
+                'to_currency': target,
+                'original_amount': amount,
+                'converted_amount': converted,
+                'exchange_rate': rate,
+                'rates_date': data.get('date'),
+                'source': 'exchangerate-api.com'
+            })
+    except Exception as e:
+        print(f"Currency API error: {str(e)}")
+    
+    # Fallback mock rates
+    mock_rates = {'EUR': 0.92, 'GBP': 0.79, 'JPY': 149.5, 'CAD': 1.36, 'INR': 83.1}
+    rate = mock_rates.get(target, 1.0)
+    
+    return ok({
+        'from_currency': base,
+        'to_currency': target,
+        'original_amount': amount,
+        'converted_amount': round(amount * rate, 2),
+        'exchange_rate': rate,
+        'source': 'mock_data'
+    })
+
+def handle_countries(event):
+    """Handle countries API requests - integrates with restcountries.com (Public API)"""
+    params = event.get('queryStringParameters', {}) or {}
+    name = params.get('name')
+    region = params.get('region')
+    
+    try:
+        if name:
+            response = requests.get(
+                f"https://restcountries.com/v3.1/name/{name}",
+                params={'fields': 'name,capital,region,currencies,population'},
+                timeout=10
+            )
+            if response.ok:
+                data = response.json()
+                if data:
+                    country = data[0]
+                    return ok({
+                        'name': country.get('name', {}).get('common'),
+                        'capital': country.get('capital', [None])[0],
+                        'region': country.get('region'),
+                        'currencies': list(country.get('currencies', {}).keys()),
+                        'population': country.get('population'),
+                        'source': 'restcountries.com'
+                    })
+        elif region:
+            response = requests.get(
+                f"https://restcountries.com/v3.1/region/{region}",
+                params={'fields': 'name,capital'},
+                timeout=10
+            )
+            if response.ok:
+                data = response.json()
+                countries = [{'name': c.get('name', {}).get('common'), 'capital': c.get('capital', [None])[0]} for c in data[:10]]
+                return ok({
+                    'region': region,
+                    'countries': countries,
+                    'count': len(countries),
+                    'source': 'restcountries.com'
+                })
+    except Exception as e:
+        print(f"Countries API error: {str(e)}")
+    
+    return ok({
+        'error': 'Please provide name or region parameter',
+        'example': '/external/countries?name=Germany or /external/countries?region=europe'
+    })
+
+
+# ============== Transaction Operations with Async Event Publishing ==============
+
+def handle_purchase(event):
+    """Handle purchase transaction with async event publishing"""
+    body = json.loads(event.get('body', '{}'))
+    transaction_id = str(uuid.uuid4())
+    product_id = body.get('product_id', 'PROD001')
+    quantity = body.get('quantity', 1)
+    unit_price = body.get('unit_price', 0)
+    total_amount = quantity * unit_price
+    
+    # Publish event for async processing
+    publish_transaction_event('PURCHASE_CREATED', transaction_id, product_id, quantity, total_amount,
+                             supplier_id=body.get('supplier_id'), warehouse_id=body.get('warehouse_id'))
+    
+    return ok({
+        'transaction_id': transaction_id,
+        'type': 'purchase',
+        'status': 'completed',
+        'total_amount': total_amount,
+        'async_processing': True
+    })
+
+def handle_sale(event):
+    """Handle sale transaction with async event publishing"""
+    body = json.loads(event.get('body', '{}'))
+    transaction_id = str(uuid.uuid4())
+    product_id = body.get('product_id', 'PROD001')
+    quantity = body.get('quantity', 1)
+    unit_price = body.get('unit_price', 0)
+    total_amount = quantity * unit_price
+    
+    # Publish event for async processing
+    publish_transaction_event('SALE_COMPLETED', transaction_id, product_id, quantity, total_amount,
+                             customer_id=body.get('customer_id'), warehouse_id=body.get('warehouse_id'))
+    
+    return ok({
+        'transaction_id': transaction_id,
+        'type': 'sale',
+        'status': 'completed',
+        'total_amount': total_amount,
+        'async_processing': True
+    })
+
+def handle_batch_transactions(event):
+    """
+    Handle batch transactions in parallel
+    Process multiple transactions concurrently using ThreadPoolExecutor
+    """
+    body = json.loads(event.get('body', '{}'))
+    transactions = body.get('transactions', [])
+    
+    if not transactions:
+        return err('No transactions provided', 400)
+    
+    results = []
+    
+    def process_single_transaction(txn):
+        txn_type = txn.get('type', 'sale')
+        transaction_id = str(uuid.uuid4())
+        product_id = txn.get('product_id')
+        quantity = txn.get('quantity', 1)
+        unit_price = txn.get('unit_price', 0)
+        total_amount = quantity * unit_price
+        
+        event_type = 'SALE_COMPLETED' if txn_type == 'sale' else 'PURCHASE_CREATED'
+        publish_transaction_event(event_type, transaction_id, product_id, quantity, total_amount)
+        
+        return {
+            'transaction_id': transaction_id,
+            'type': txn_type,
+            'total_amount': total_amount,
+            'status': 'queued'
+        }
+    
+    # Process all transactions in parallel
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(process_single_transaction, txn) for txn in transactions]
+        for future in as_completed(futures):
+            try:
+                results.append(future.result(timeout=10))
+            except Exception as e:
+                results.append({'error': str(e), 'status': 'failed'})
+    
+    total_amount = sum(r.get('total_amount', 0) for r in results if 'total_amount' in r)
+    
+    return ok({
+        'message': f'Batch processed: {len(results)} transactions',
+        'total_transactions': len(results),
+        'total_amount': total_amount,
+        'results': results,
+        'parallel_processing': True
+    })
+
 
 def handle_login(event):
     body = json.loads(event.get('body','{}'))
@@ -128,6 +418,131 @@ def handle_list_categories():
         {'category_id':'CAT002','name':'Accessories','description':'Computer accessories and peripherals','product_count':3},
         {'category_id':'CAT003','name':'Storage','description':'Storage devices and media','product_count':0},
     ]})
+
+
+# ============== Stock Operations with Async Event Publishing ==============
+
+def handle_stock_in(event):
+    """Handle stock-in with async event publishing"""
+    body = json.loads(event.get('body', '{}'))
+    transaction_id = str(uuid.uuid4())
+    product_id = body.get('product_id', 'PROD001')
+    warehouse_id = body.get('warehouse_id', 'WH001')
+    quantity = body.get('quantity', 0)
+    
+    # Publish event for async processing by SQS consumer
+    publish_stock_event('STOCK_IN', product_id, warehouse_id, quantity, transaction_id=transaction_id)
+    
+    return ok({
+        'message': 'Stock added',
+        'transaction_id': transaction_id,
+        'async_processing': True,
+        'event_queued': 'STOCK_IN'
+    })
+
+def handle_stock_out(event):
+    """Handle stock-out with async event publishing and low stock check"""
+    body = json.loads(event.get('body', '{}'))
+    transaction_id = str(uuid.uuid4())
+    product_id = body.get('product_id', 'PROD001')
+    warehouse_id = body.get('warehouse_id', 'WH001')
+    quantity = body.get('quantity', 0)
+    
+    # Publish event for async processing
+    publish_stock_event('STOCK_OUT', product_id, warehouse_id, quantity, transaction_id=transaction_id)
+    
+    # Simulate low stock check - in production this would query actual inventory
+    current_stock = 125 - quantity  # Simulated
+    reorder_threshold = 20
+    if current_stock < reorder_threshold:
+        publish_stock_event('LOW_STOCK_TRIGGERED', product_id, warehouse_id, current_stock, 
+                           threshold=reorder_threshold)
+    
+    return ok({
+        'message': 'Stock removed',
+        'transaction_id': transaction_id,
+        'async_processing': True,
+        'event_queued': 'STOCK_OUT'
+    })
+
+def handle_stock_transfer(event):
+    """Handle stock transfer between warehouses"""
+    body = json.loads(event.get('body', '{}'))
+    transaction_id = str(uuid.uuid4())
+    product_id = body.get('product_id', 'PROD001')
+    from_warehouse = body.get('from_warehouse_id', 'WH001')
+    to_warehouse = body.get('to_warehouse_id', 'WH002')
+    quantity = body.get('quantity', 0)
+    
+    # Publish event for async processing
+    publish_stock_event('STOCK_TRANSFER', product_id, from_warehouse, quantity,
+                       transaction_id=transaction_id, to_warehouse_id=to_warehouse)
+    
+    return ok({
+        'message': 'Stock transferred',
+        'transaction_id': transaction_id,
+        'from_warehouse': from_warehouse,
+        'to_warehouse': to_warehouse,
+        'async_processing': True,
+        'event_queued': 'STOCK_TRANSFER'
+    })
+
+def handle_batch_inventory(event):
+    """
+    Handle batch inventory operations in parallel
+    Processes multiple stock updates concurrently using ThreadPoolExecutor
+    """
+    body = json.loads(event.get('body', '{}'))
+    operations = body.get('operations', [])
+    
+    if not operations:
+        return err('No operations provided', 400)
+    
+    results = []
+    errors = []
+    
+    def process_single_operation(op):
+        op_type = op.get('type', 'stock_in')
+        product_id = op.get('product_id')
+        warehouse_id = op.get('warehouse_id')
+        quantity = op.get('quantity', 0)
+        transaction_id = str(uuid.uuid4())
+        
+        event_type = {
+            'stock_in': 'STOCK_IN',
+            'stock_out': 'STOCK_OUT',
+            'transfer': 'STOCK_TRANSFER'
+        }.get(op_type, 'STOCK_IN')
+        
+        publish_stock_event(event_type, product_id, warehouse_id, quantity, transaction_id=transaction_id)
+        
+        return {
+            'transaction_id': transaction_id,
+            'type': op_type,
+            'product_id': product_id,
+            'status': 'queued'
+        }
+    
+    # Process all operations in parallel using ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(process_single_operation, op): op for op in operations}
+        
+        for future in as_completed(futures):
+            try:
+                result = future.result(timeout=10)
+                results.append(result)
+            except Exception as e:
+                errors.append({'operation': futures[future], 'error': str(e)})
+    
+    return ok({
+        'message': f'Batch processed: {len(results)} operations queued',
+        'processed': len(results),
+        'failed': len(errors),
+        'results': results,
+        'errors': errors,
+        'parallel_processing': True
+    })
+
 
 def handle_list_inventory():
     return ok({'inventory':[

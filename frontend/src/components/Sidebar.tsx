@@ -10,6 +10,7 @@ import {
   Bell,
   BookOpen,
   LogOut,
+  Globe,
 } from 'lucide-react';
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
   { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/resources', icon: BookOpen, label: 'Resources' },
+  { to: '/external-apis', icon: Globe, label: 'External APIs' },
   { to: '/notifications', icon: Bell, label: 'Notifications' },
 ];
 
