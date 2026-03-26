@@ -120,18 +120,9 @@ Additionally, modern businesses require integration with external services for e
 
 \subsection{Project Objectives}
 
-The development of HarshScalable is guided by eight primary objectives aligned with user needs and technical quality:
+The development of HarshScalable is guided by eight primary objectives aligned with user needs and technical quality. First, design and deploy a responsive single-page application for inventory management with interactive dashboards, grid-based layouts, and real-time analytics visualization. Second, implement secure RESTful APIs with input validation, JWT authentication, and comprehensive API documentation. Third, create a parallel processing system using ThreadPoolExecutor for batch operations, enabling simultaneous processing of multiple inventory items and transactions.
 
-\begin{enumerate}
-    \item Design and deploy a responsive single-page application for inventory management with interactive dashboards, grid-based layouts, and real-time analytics visualization.
-    \item Implement secure RESTful APIs with input validation, JWT authentication, and comprehensive API documentation.
-    \item Create a parallel processing system using ThreadPoolExecutor for batch operations, enabling simultaneous processing of multiple inventory items and transactions.
-    \item Integrate external APIs (Weather, Currency, Countries) to enhance business intelligence capabilities.
-    \item Build asynchronous event processing using Amazon SQS for decoupled, scalable message handling.
-    \item Implement a fully automated CI/CD pipeline using GitHub Actions for linting, testing, and deployment.
-    \item Achieve 10x performance improvement for batch operations compared to sequential processing.
-    \item Maintain 99.5\% uptime SLA with zero-downtime deployments and production-ready security configurations.
-\end{enumerate}
+Fourth, integrate external APIs (Weather, Currency, Countries) to enhance business intelligence capabilities. Fifth, build asynchronous event processing using Amazon SQS for decoupled, scalable message handling. Sixth, implement a fully automated CI/CD pipeline using GitHub Actions for linting, testing, and deployment. Seventh, achieve 10x performance improvement for batch operations compared to sequential processing. Eighth, maintain 99.5\% uptime SLA with zero-downtime deployments and production-ready security configurations.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Project Specification and Requirements}
@@ -151,12 +142,7 @@ The functional requirements define the core operations of the HarshScalable syst
 
 \textbf{Asynchronous Processing:} Inventory events are published to Amazon SQS queues (stock-events, transaction-events, notification-events) for decoupled processing, enabling the system to handle high request volumes without blocking.
 
-\textbf{External API Integration:} The system integrates with three public APIs:
-\begin{itemize}
-    \item OpenWeatherMap API for weather data affecting logistics decisions
-    \item ExchangeRate-API for real-time currency conversion
-    \item RestCountries API for geographical business intelligence
-\end{itemize}
+\textbf{External API Integration:} The system integrates with three public APIs: OpenWeatherMap API for weather data affecting logistics decisions, ExchangeRate-API for real-time currency conversion, and RestCountries API for geographical business intelligence.
 
 \textbf{Data Export:} Export inventory data, transaction records, and analytics results in JSON format for use in external tools (Excel, Tableau, Python workflows).
 
@@ -180,16 +166,7 @@ The functional requirements define the core operations of the HarshScalable syst
 
 \subsection{Constraints}
 
-The following constraints govern the design and implementation:
-
-\begin{itemize}
-    \item The system must be deployed on AWS cloud infrastructure
-    \item Serverless services (Lambda, API Gateway, SQS) must support all scalable processing
-    \item DynamoDB must be used as the primary database for operational data
-    \item The system must integrate at least one public API
-    \item All communications must follow RESTful API standards
-    \item No hardcoded credentials; all secrets managed via environment variables
-\end{itemize}
+The following constraints govern the design and implementation. The system must be deployed on AWS cloud infrastructure. Serverless services (Lambda, API Gateway, SQS) must support all scalable processing. DynamoDB must be used as the primary database for operational data. The system must integrate at least one public API. All communications must follow RESTful API standards. No hardcoded credentials are permitted; all secrets must be managed via environment variables.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Architecture and Design}
@@ -249,12 +226,7 @@ The system implements both data parallelism and task parallelism:
 
 \textbf{Task Parallelism:} Independent system operations execute concurrently including validation, SQS publishing, external API calls, and database operations.
 
-\textbf{Performance Comparison:}
-\begin{itemize}
-    \item Sequential: 100 items @ 100ms each = 10 seconds
-    \item Parallel (10 workers): 100 items = $\sim$1 second
-    \item Speedup: 10x improvement
-\end{itemize}
+\textbf{Performance Comparison:} Sequential processing of 100 items at 100ms each takes 10 seconds total. With parallel processing using 10 workers, the same 100 items complete in approximately 1 second, achieving a 10x speedup improvement.
 
 \subsection{External API Integration}
 
@@ -308,22 +280,9 @@ The implementation consists of a Python backend deployed on AWS Lambda and a Rea
 
 \subsection{System Implementation Overview}
 
-\textbf{Backend (Python 3.12):}
-\begin{itemize}
-    \item \texttt{backend-lambda.py}: Main Lambda handler with all API endpoints
-    \item \texttt{backend/batch\_processor.py}: Parallel batch processing with ThreadPoolExecutor
-    \item \texttt{backend/sqs\_consumer.py}: SQS message consumer with parallel processing
-    \item \texttt{backend/event\_publisher.py}: Async event publishing to SQS
-    \item \texttt{backend/external\_apis.py}: External API service classes
-\end{itemize}
+\textbf{Backend (Python 3.12):} The backend consists of five main modules. The \texttt{backend-lambda.py} file serves as the main Lambda handler with all API endpoints. The \texttt{backend/batch\_processor.py} module implements parallel batch processing with ThreadPoolExecutor. The \texttt{backend/sqs\_consumer.py} module handles SQS message consumption with parallel processing. The \texttt{backend/event\_publisher.py} module manages async event publishing to SQS. The \texttt{backend/external\_apis.py} module contains external API service classes.
 
-\textbf{Frontend (React 18 + TypeScript):}
-\begin{itemize}
-    \item \texttt{frontend/src/App.tsx}: Main application with routing
-    \item \texttt{frontend/src/pages/}: Page components including ExternalApisPage
-    \item \texttt{frontend/src/services/api.ts}: Axios-based API client
-    \item \texttt{frontend/src/components/}: Reusable UI components
-\end{itemize}
+\textbf{Frontend (React 18 + TypeScript):} The frontend is organized into four main areas. The \texttt{frontend/src/App.tsx} file contains the main application with routing configuration. The \texttt{frontend/src/pages/} directory holds page components including ExternalApisPage. The \texttt{frontend/src/services/api.ts} file provides the Axios-based API client. The \texttt{frontend/src/components/} directory contains reusable UI components.
 
 \subsection{API Implementation (Own API)}
 
@@ -362,13 +321,7 @@ The ParallelSQSConsumer class receives messages from SQS queues in batches (up t
 
 \subsection{External API Services}
 
-Three external API service classes are implemented:
-
-\begin{itemize}
-    \item \textbf{WeatherService}: Connects to OpenWeatherMap API to retrieve weather data including temperature (converted from Kelvin to Celsius), humidity, and weather descriptions for specified cities.
-    \item \textbf{CurrencyExchangeService}: Connects to ExchangeRate-API to retrieve real-time exchange rates and perform currency conversions between any supported currency pairs.
-    \item \textbf{RESTCountriesService}: Connects to RestCountries API to retrieve country information including capital, population, region, and currency data.
-\end{itemize}
+Three external API service classes are implemented. The WeatherService connects to OpenWeatherMap API to retrieve weather data including temperature (converted from Kelvin to Celsius), humidity, and weather descriptions for specified cities. The CurrencyExchangeService connects to ExchangeRate-API to retrieve real-time exchange rates and perform currency conversions between any supported currency pairs. The RESTCountriesService connects to RestCountries API to retrieve country information including capital, population, region, and currency data.
 
 All services include error handling, timeout protection, and return standardized response formats with source attribution.
 
@@ -405,14 +358,7 @@ HarshScalable implements a complete CI/CD pipeline for automated development, te
 
 \subsection{Deployment Process}
 
-The deployment process consists of four main stages:
-
-\begin{enumerate}
-    \item \textbf{Frontend Build}: The React application is built using Vite, which compiles TypeScript, bundles assets, and generates optimized production files in the dist directory.
-    \item \textbf{Lambda Packaging}: Python dependencies are installed into a deployment directory, the Lambda handler is copied, and everything is zipped into a deployment package.
-    \item \textbf{Lambda Deployment}: The AWS CLI updates the Lambda function code with the new deployment package, enabling zero-downtime updates.
-    \item \textbf{Frontend Deployment}: The built frontend files are synced to the S3 bucket with the delete flag to remove obsolete files, and CloudFront cache is invalidated if applicable.
-\end{enumerate}
+The deployment process consists of four main stages. In the Frontend Build stage, the React application is built using Vite, which compiles TypeScript, bundles assets, and generates optimized production files in the dist directory. In the Lambda Packaging stage, Python dependencies are installed into a deployment directory, the Lambda handler is copied, and everything is zipped into a deployment package. In the Lambda Deployment stage, the AWS CLI updates the Lambda function code with the new deployment package, enabling zero-downtime updates. In the Frontend Deployment stage, the built frontend files are synced to the S3 bucket with the delete flag to remove obsolete files, and CloudFront cache is invalidated if applicable.
 
 \subsection{Deployed Application URLs}
 
@@ -456,14 +402,7 @@ Independent system operations execute concurrently to maximize throughput. This 
 
 \subsection{SQS-Based Event Processing}
 
-Three event queues are implemented:
-\begin{enumerate}
-    \item \textbf{stock-events}: Inventory level changes
-    \item \textbf{transaction-events}: Sales and purchase transactions
-    \item \textbf{notification-events}: Alerts and notifications
-\end{enumerate}
-
-Messages are consumed in parallel batches with automatic retry and dead-letter queue support.
+Three event queues are implemented for different purposes. The stock-events queue handles inventory level changes. The transaction-events queue processes sales and purchase transactions. The notification-events queue manages alerts and notifications. Messages are consumed in parallel batches with automatic retry and dead-letter queue support.
 
 \subsection{Async/Await Pattern}
 
