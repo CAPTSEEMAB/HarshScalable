@@ -1,0 +1,298 @@
+version: "3.9"
+
+# Production Docker Compose Configuration
+# Uses AWS services instead of local emulation
+# Account: 623527519314 (eu-west-1)
+# Requires AWS credentials in .env file
+# 
+# Usage:
+#   docker-compose -f docker-compose.prod.yml build
+#   docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  # Auth Service
+  auth-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        SERVICE_DIR: auth-service
+        SERVICE_PORT: ${AUTH_SERVICE_PORT:-8001}
+    container_name: auth-service
+    ports:
+      - "${AUTH_SERVICE_PORT:-8001}:${AUTH_SERVICE_PORT:-8001}"
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_PORT=${AUTH_SERVICE_PORT:-8001}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-eu-west-1}
+      - JWT_SECRET_NAME=${JWT_SECRET_NAME}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - USERS_TABLE=${USERS_TABLE:-InventoryUsers}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${AUTH_SERVICE_PORT:-8001}/api/v1/auth/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  # Product Service
+  product-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        SERVICE_DIR: product-service
+        SERVICE_PORT: ${PRODUCT_SERVICE_PORT:-8002}
+    container_name: product-service
+    ports:
+      - "${PRODUCT_SERVICE_PORT:-8002}:${PRODUCT_SERVICE_PORT:-8002}"
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_PORT=${PRODUCT_SERVICE_PORT:-8002}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-eu-west-1}
+      - PRODUCTS_TABLE=${PRODUCTS_TABLE:-InventoryProducts}
+      - CATEGORIES_TABLE=${CATEGORIES_TABLE:-InventoryCategories}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PRODUCT_SERVICE_PORT:-8002}/api/v1/products/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  # Inventory Service
+  inventory-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        SERVICE_DIR: inventory-service
+        SERVICE_PORT: ${INVENTORY_SERVICE_PORT:-8003}
+    container_name: inventory-service
+    ports:
+      - "${INVENTORY_SERVICE_PORT:-8003}:${INVENTORY_SERVICE_PORT:-8003}"
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_PORT=${INVENTORY_SERVICE_PORT:-8003}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-eu-west-1}
+      - INVENTORY_TABLE=${INVENTORY_TABLE:-InventoryStock}
+      - WAREHOUSES_TABLE=${WAREHOUSES_TABLE:-InventoryWarehouses}
+      - INVENTORY_HISTORY_TABLE=${INVENTORY_HISTORY_TABLE:-InventoryStockHistory}
+      - PRODUCTS_TABLE=${PRODUCTS_TABLE:-InventoryProducts}
+      - STOCK_EVENTS_QUEUE_URL=${STOCK_EVENTS_QUEUE_URL}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${INVENTORY_SERVICE_PORT:-8003}/api/v1/inventory/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  # Transaction Service
+  transaction-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        SERVICE_DIR: transaction-service
+        SERVICE_PORT: ${TRANSACTION_SERVICE_PORT:-8004}
+    container_name: transaction-service
+    ports:
+      - "${TRANSACTION_SERVICE_PORT:-8004}:${TRANSACTION_SERVICE_PORT:-8004}"
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_PORT=${TRANSACTION_SERVICE_PORT:-8004}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-eu-west-1}
+      - TRANSACTIONS_TABLE=${TRANSACTIONS_TABLE:-InventoryTransactions}
+      - TRANSACTION_EVENTS_QUEUE_URL=${TRANSACTION_EVENTS_QUEUE_URL}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${TRANSACTION_SERVICE_PORT:-8004}/api/v1/transactions/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  # Analytics Service
+  analytics-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        SERVICE_DIR: analytics-service
+        SERVICE_PORT: ${ANALYTICS_SERVICE_PORT:-8005}
+    container_name: analytics-service
+    ports:
+      - "${ANALYTICS_SERVICE_PORT:-8005}:${ANALYTICS_SERVICE_PORT:-8005}"
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_PORT=${ANALYTICS_SERVICE_PORT:-8005}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-eu-west-1}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_SSL=${REDIS_SSL:-false}
+      - TRANSACTIONS_TABLE=${TRANSACTIONS_TABLE:-InventoryTransactions}
+      - PRODUCTS_TABLE=${PRODUCTS_TABLE:-InventoryProducts}
+      - INVENTORY_TABLE=${INVENTORY_TABLE:-InventoryStock}
+      - STOCK_EVENTS_QUEUE_URL=${STOCK_EVENTS_QUEUE_URL}
+      - TRANSACTION_EVENTS_QUEUE_URL=${TRANSACTION_EVENTS_QUEUE_URL}
+      - ANALYTICS_CACHE_TTL=${ANALYTICS_CACHE_TTL:-300}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${ANALYTICS_SERVICE_PORT:-8005}/api/v1/analytics/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  # Resource Service
+  resource-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        SERVICE_DIR: resource-service
+        SERVICE_PORT: ${RESOURCE_SERVICE_PORT:-8006}
+    container_name: resource-service
+    ports:
+      - "${RESOURCE_SERVICE_PORT:-8006}:${RESOURCE_SERVICE_PORT:-8006}"
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_PORT=${RESOURCE_SERVICE_PORT:-8006}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-eu-west-1}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_SSL=${REDIS_SSL:-false}
+      - PRODUCTS_TABLE=${PRODUCTS_TABLE:-InventoryProducts}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${RESOURCE_SERVICE_PORT:-8006}/api/v1/resources/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        SERVICE_DIR: notification-service
+        SERVICE_PORT: ${NOTIFICATION_SERVICE_PORT:-8007}
+    container_name: notification-service
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8007}:${NOTIFICATION_SERVICE_PORT:-8007}"
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_PORT=${NOTIFICATION_SERVICE_PORT:-8007}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-eu-west-1}
+      - NOTIFICATIONS_TABLE=${NOTIFICATIONS_TABLE:-InventoryNotifications}
+      - NOTIFICATION_QUEUE_URL=${NOTIFICATION_QUEUE_URL}
+      - SES_SENDER_EMAIL=${SES_SENDER_EMAIL}
+      - SES_REGION=${SES_REGION:-${AWS_REGION}}
+      - SNS_TOPIC_ARN=${SNS_TOPIC_ARN}
+      - NOTIFICATION_POLL_INTERVAL=${NOTIFICATION_POLL_INTERVAL:-15}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${NOTIFICATION_SERVICE_PORT:-8007}/api/v1/notifications/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+volumes:
+  redis-data:
+
+networks:
+  default:
+    name: inventory-network
+    driver: bridge

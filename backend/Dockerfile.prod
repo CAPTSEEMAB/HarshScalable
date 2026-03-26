@@ -1,0 +1,100 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install all dependencies
+COPY auth-service/requirements.txt auth-requirements.txt
+COPY product-service/requirements.txt product-requirements.txt
+COPY inventory-service/requirements.txt inventory-requirements.txt
+COPY transaction-service/requirements.txt transaction-requirements.txt
+COPY analytics-service/requirements.txt analytics-requirements.txt
+COPY resource-service/requirements.txt resource-requirements.txt
+COPY notification-service/requirements.txt notification-requirements.txt
+
+RUN pip install --no-cache-dir -r auth-requirements.txt && \
+    pip install --no-cache-dir -r product-requirements.txt && \
+    pip install --no-cache-dir -r inventory-requirements.txt && \
+    pip install --no-cache-dir -r transaction-requirements.txt && \
+    pip install --no-cache-dir -r analytics-requirements.txt && \
+    pip install --no-cache-dir -r resource-requirements.txt && \
+    pip install --no-cache-dir -r notification-requirements.txt && \
+    pip install supervisor
+
+# Copy all services
+COPY shared/ /app/shared/
+COPY auth-service/app/ /app/auth-app/
+COPY product-service/app/ /app/product-app/
+COPY inventory-service/app/ /app/inventory-app/
+COPY transaction-service/app/ /app/transaction-app/
+COPY analytics-service/app/ /app/analytics-app/
+COPY resource-service/app/ /app/resource-app/
+COPY notification-service/app/ /app/notification-app/
+
+# Create supervisor config
+RUN mkdir -p /etc/supervisor/conf.d
+
+COPY <<EOF /etc/supervisor/conf.d/services.conf
+[supervisord]
+nodaemon=true
+logfile=/var/log/supervisord.log
+
+[program:auth-service]
+directory=/app/auth-app
+command=python -m uvicorn main:app --host 0.0.0.0 --port 8001
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/auth-service.err.log
+stdout_logfile=/var/log/auth-service.out.log
+
+[program:product-service]
+directory=/app/product-app
+command=python -m uvicorn main:app --host 0.0.0.0 --port 8002
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/product-service.err.log
+stdout_logfile=/var/log/product-service.out.log
+
+[program:inventory-service]
+directory=/app/inventory-app
+command=python -m uvicorn main:app --host 0.0.0.0 --port 8003
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/inventory-service.err.log
+stdout_logfile=/var/log/inventory-service.out.log
+
+[program:transaction-service]
+directory=/app/transaction-app
+command=python -m uvicorn main:app --host 0.0.0.0 --port 8004
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/transaction-service.err.log
+stdout_logfile=/var/log/transaction-service.out.log
+
+[program:analytics-service]
+directory=/app/analytics-app
+command=python -m uvicorn main:app --host 0.0.0.0 --port 8005
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/analytics-service.err.log
+stdout_logfile=/var/log/analytics-service.out.log
+
+[program:resource-service]
+directory=/app/resource-app
+command=python -m uvicorn main:app --host 0.0.0.0 --port 8006
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/resource-service.err.log
+stdout_logfile=/var/log/resource-service.out.log
+
+[program:notification-service]
+directory=/app/notification-app
+command=python -m uvicorn main:app --host 0.0.0.0 --port 8007
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/notification-service.err.log
+stdout_logfile=/var/log/notification-service.out.log
+EOF
+
+EXPOSE 8001 8002 8003 8004 8005 8006 8007
+
+CMD ["/usr/local/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
