@@ -1,8 +1,4 @@
-/**
- * Frontend Environment Configuration
- * Loads from .env file and provides API endpoints
- * Production-ready with environment-based routing
- */
+
 
 interface EnvironmentConfig {
   api_base: string;
@@ -24,30 +20,29 @@ declare global {
 }
 
 function getConfig(): EnvironmentConfig {
-  // In development, use relative paths (proxied through Vite)
-  // In production, use full API URLs from environment
-  
+
   const mode = (import.meta as any).env?.MODE || 'production';
   const isDev = mode === 'development';
 
+  const awsApiBase = 'https:
+
   if (isDev) {
-    // Development: Vite proxies to localhost:800X
+    
     return {
-      api_base: '/api/v1',
-      auth_service: '/api/v1/auth',
-      product_service: '/api/v1/products',
-      inventory_service: '/api/v1/inventory',
-      transaction_service: '/api/v1/transactions',
-      analytics_service: '/api/v1/analytics',
-      resource_service: '/api/v1/resources',
-      notification_service: '/api/v1/notifications',
+      api_base: awsApiBase,
+      auth_service: `${awsApiBase}/auth`,
+      product_service: `${awsApiBase}/products`,
+      inventory_service: `${awsApiBase}/inventory`,
+      transaction_service: `${awsApiBase}/transactions`,
+      analytics_service: `${awsApiBase}/analytics`,
+      resource_service: `${awsApiBase}/resources`,
+      notification_service: `${awsApiBase}/notifications`,
       environment: 'development',
       debug: true,
     };
   }
 
-  // Production: Use environment variables or defaults
-  const apiBase = (import.meta as any).env?.VITE_API_BASE_URL || 'https://e5v47xrvak.execute-api.eu-west-1.amazonaws.com/prod/api/v1';
+  const apiBase = (import.meta as any).env?.VITE_API_BASE_URL || 'https:
   
   return {
     api_base: apiBase,
@@ -66,5 +61,4 @@ function getConfig(): EnvironmentConfig {
 export const config = getConfig();
 
 if (config.debug) {
-  console.log('[Config]', config);
-}
+  }

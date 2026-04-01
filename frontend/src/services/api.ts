@@ -8,7 +8,6 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach JWT token to every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
   if (token) {
@@ -17,7 +16,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle token refresh on 401
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -46,7 +44,6 @@ api.interceptors.response.use(
 
 export default api;
 
-// ---------- Auth ----------
 export const authAPI = {
   register: (data: { name: string; email: string; password: string; role?: string }) =>
     api.post('/auth/register', data),
@@ -56,7 +53,6 @@ export const authAPI = {
   deleteAccount: () => api.delete('/auth/account'),
 };
 
-// ---------- Products ----------
 export const productsAPI = {
   list: (categoryId?: string) =>
     api.get('/products', { params: categoryId ? { category_id: categoryId } : {} }),
@@ -66,14 +62,12 @@ export const productsAPI = {
   delete: (id: string) => api.delete(`/products/${id}`),
 };
 
-// ---------- Categories ----------
 export const categoriesAPI = {
   list: () => api.get('/categories'),
   create: (data: { name: string; description?: string }) => api.post('/categories', data),
   delete: (id: string) => api.delete(`/categories/${id}`),
 };
 
-// ---------- Inventory ----------
 export const inventoryAPI = {
   list: (warehouseId?: string) =>
     api.get('/inventory', { params: warehouseId ? { warehouse_id: warehouseId } : {} }),
@@ -91,7 +85,6 @@ export const inventoryAPI = {
   history: (productId: string) => api.get(`/inventory/history/${productId}`),
 };
 
-// ---------- Warehouses ----------
 export const warehousesAPI = {
   list: () => api.get('/warehouses'),
   get: (id: string) => api.get(`/warehouses/${id}`),
@@ -99,7 +92,6 @@ export const warehousesAPI = {
   delete: (id: string) => api.delete(`/warehouses/${id}`),
 };
 
-// ---------- Transactions ----------
 export const transactionsAPI = {
   purchase: (data: Record<string, unknown>) => api.post('/transactions/purchase', data),
   sale: (data: Record<string, unknown>) => api.post('/transactions/sale', data),
@@ -109,7 +101,6 @@ export const transactionsAPI = {
   get: (id: string) => api.get(`/transactions/${id}`),
 };
 
-// ---------- Analytics ----------
 export const analyticsAPI = {
   dashboard: () => api.get('/analytics/dashboard'),
   lowStock: () => api.get('/analytics/low-stock'),
@@ -121,7 +112,6 @@ export const analyticsAPI = {
     api.get(`/analytics/forecast/${productId}`, { params: { days } }),
 };
 
-// ---------- Resources ----------
 export const resourcesAPI = {
   suppliers: (params?: Record<string, string>) => api.get('/resources/suppliers', { params }),
   recommendations: (category?: string) =>
@@ -131,39 +121,33 @@ export const resourcesAPI = {
   vendorSearch: (q: string) => api.get('/resources/vendor-search', { params: { q } }),
 };
 
-// ---------- Notifications ----------
 export const notificationsAPI = {
   list: () => api.get('/notifications'),
   create: (data: { type: string; subject: string; message: string; action_url?: string }) =>
     api.post('/notifications', data),
 };
 
-// ---------- External Public APIs ----------
 export const externalAPI = {
-  // OpenWeatherMap integration
+  
   weather: (city?: string, warehouseId?: string) =>
     api.get('/external/weather', { params: { city, warehouse_id: warehouseId } }),
-  
-  // Exchange Rate API integration  
+
   currency: (base?: string, target?: string, amount?: number) =>
     api.get('/external/currency', { params: { base, target, amount } }),
-  
-  // REST Countries API integration
+
   countries: (name?: string, region?: string) =>
     api.get('/external/countries', { params: { name, region } }),
 };
 
-// ---------- Batch Operations (Parallel Processing) ----------
 export const batchAPI = {
-  // Batch inventory operations - processed in parallel
+  
   inventory: (operations: Array<{
     type: 'stock_in' | 'stock_out' | 'transfer';
     product_id: string;
     warehouse_id: string;
     quantity: number;
   }>) => api.post('/inventory/batch', { operations }),
-  
-  // Batch transactions - processed in parallel
+
   transactions: (transactions: Array<{
     type: 'sale' | 'purchase';
     product_id: string;

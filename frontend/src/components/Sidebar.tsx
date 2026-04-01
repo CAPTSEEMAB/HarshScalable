@@ -36,13 +36,13 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-      {/* Brand */}
+      {}
       <div className="p-6 border-b border-gray-200">
         <h1 className="text-xl font-bold text-primary-700">📦 InvenTrack</h1>
         <p className="text-xs text-gray-500 mt-1">Inventory & Analytics</p>
       </div>
 
-      {/* Navigation */}
+      {}
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
@@ -62,7 +62,7 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* User section */}
+      {}
       <div className="p-4 border-t border-gray-200">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">

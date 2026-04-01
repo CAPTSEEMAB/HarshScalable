@@ -25,8 +25,7 @@ export default function NotificationsPage() {
         setNotifications(response.data.notifications || []);
         setError(null);
       } catch (err) {
-        console.error('Failed to fetch notifications:', err);
-        setError('Failed to load notifications');
+                setError('Failed to load notifications');
       } finally {
         setLoading(false);
       }

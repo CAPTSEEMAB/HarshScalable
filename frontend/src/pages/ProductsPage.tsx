@@ -46,7 +46,7 @@ export default function ProductsPage() {
       setShowForm(false);
       setForm({ sku: '', name: '', category_id: '', unit_price: '', reorder_threshold: '10', description: '' });
       loadData();
-    } catch (err) { console.error(err); }
+    } catch (err) {  }
   };
 
   const handleDelete = async (id: string) => {

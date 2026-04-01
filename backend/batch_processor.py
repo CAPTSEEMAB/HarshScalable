@@ -1,8 +1,3 @@
-"""
-Batch Processing Worker
-Handles bulk operations using parallel processing with ThreadPool and ProcessPool
-"""
-
 import boto3
 import json
 import asyncio
@@ -19,21 +14,8 @@ logger = logging.getLogger(__name__)
 REGION = os.environ.get('AWS_REGION', 'eu-west-1')
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 
-
 class BatchProcessor:
-    """
-    Generic batch processor with parallel execution
-    Supports both thread-based and process-based parallelism
-    """
-    
     def __init__(self, max_workers: int = None, use_processes: bool = False):
-        """
-        Initialize batch processor
-        
-        Args:
-            max_workers: Number of parallel workers (default: CPU count)
-            use_processes: Use ProcessPoolExecutor for CPU-bound tasks
-        """
         self.max_workers = max_workers or multiprocessing.cpu_count()
         self.use_processes = use_processes
     
@@ -43,17 +25,6 @@ class BatchProcessor:
         processor_func: Callable,
         chunk_size: int = 100
     ) -> Dict[str, Any]:
-        """
-        Process items in parallel batches
-        
-        Args:
-            items: List of items to process
-            processor_func: Function to apply to each item
-            chunk_size: Size of chunks for batching
-        
-        Returns:
-            Dict with results, errors, and statistics
-        """
         if not items:
             return {'results': [], 'errors': [], 'total': 0, 'successful': 0}
         
@@ -61,17 +32,13 @@ class BatchProcessor:
         results = []
         errors = []
         
-        # Choose executor type
         ExecutorClass = ProcessPoolExecutor if self.use_processes else ThreadPoolExecutor
         
         with ExecutorClass(max_workers=self.max_workers) as executor:
-            # Submit all items for processing
             future_to_item = {
                 executor.submit(processor_func, item): item
                 for item in items
             }
-            
-            # Collect results as they complete
             for future in as_completed(future_to_item):
                 item = future_to_item[future]
                 try:
@@ -101,9 +68,6 @@ class BatchProcessor:
         processor_func: Callable,
         max_concurrent: int = 50
     ) -> Dict[str, Any]:
-        """
-        Process items using asyncio for I/O-bound operations
-        """
         if not items:
             return {'results': [], 'errors': [], 'total': 0}
         
@@ -115,14 +79,11 @@ class BatchProcessor:
         async def process_with_semaphore(item):
             async with semaphore:
                 try:
-                    # Run sync function in thread pool
                     loop = asyncio.get_event_loop()
                     result = await loop.run_in_executor(None, processor_func, item)
                     return {'item': item, 'result': result, 'status': 'success'}
                 except Exception as e:
                     return {'item': item, 'error': str(e), 'status': 'error'}
-        
-        # Process all items concurrently
         tasks = [process_with_semaphore(item) for item in items]
         completed = await asyncio.gather(*tasks, return_exceptions=True)
         
@@ -146,25 +107,13 @@ class BatchProcessor:
             'duration_seconds': duration
         }
 
-
-# ============== Specialized Batch Processors ==============
-
 class InventoryBatchProcessor:
-    """
-    Batch processor for inventory operations
-    """
     
     def __init__(self):
         self.processor = BatchProcessor(max_workers=10)
         self.inventory_table = dynamodb.Table('InventoryTable')
     
     def bulk_stock_update(self, updates: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Update stock levels for multiple products in parallel
-        
-        Args:
-            updates: List of {'product_id', 'warehouse_id', 'quantity_change'}
-        """
         def update_single(update):
             product_id = update['product_id']
             warehouse_id = update['warehouse_id']
@@ -187,10 +136,6 @@ class InventoryBatchProcessor:
         return self.processor.process_batch(updates, update_single)
     
     def bulk_low_stock_check(self, products: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Check low stock status for multiple products in parallel
-        Returns list of products below threshold
-        """
         def check_single(product):
             product_id = product['product_id']
             threshold = product.get('reorder_threshold', 20)
@@ -215,23 +160,14 @@ class InventoryBatchProcessor:
         
         return self.processor.process_batch(products, check_single)
 
-
 class AnalyticsBatchProcessor:
-    """
-    Batch processor for analytics computations
-    Uses ProcessPoolExecutor for CPU-intensive calculations
-    """
     
     def __init__(self):
         self.processor = BatchProcessor(max_workers=4, use_processes=False)
         self.analytics_table = dynamodb.Table('AnalyticsTable')
     
     def compute_product_metrics(self, product_ids: List[str]) -> Dict[str, Any]:
-        """
-        Compute analytics metrics for multiple products in parallel
-        """
         def compute_single(product_id):
-            # Simulate metric computation
             import random
             return {
                 'product_id': product_id,
@@ -244,9 +180,6 @@ class AnalyticsBatchProcessor:
         return self.processor.process_batch(product_ids, compute_single)
     
     def aggregate_daily_metrics(self, dates: List[str]) -> Dict[str, Any]:
-        """
-        Aggregate metrics for multiple dates in parallel
-        """
         def aggregate_single(date):
             try:
                 response = self.analytics_table.query(
@@ -271,20 +204,13 @@ class AnalyticsBatchProcessor:
         
         return self.processor.process_batch(dates, aggregate_single)
 
-
 class TransactionBatchProcessor:
-    """
-    Batch processor for transaction operations
-    """
     
     def __init__(self):
         self.processor = BatchProcessor(max_workers=10)
         self.transaction_table = dynamodb.Table('TransactionTable')
     
     def bulk_record_transactions(self, transactions: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Record multiple transactions in parallel
-        """
         def record_single(txn):
             import uuid
             transaction_id = str(uuid.uuid4())
@@ -309,14 +235,7 @@ class TransactionBatchProcessor:
         
         return self.processor.process_batch(transactions, record_single)
 
-
-# ============== Lambda Handler for Batch Operations ==============
-
 def lambda_batch_handler(event, context):
-    """
-    Lambda handler for batch processing requests
-    Supports: bulk_stock_update, bulk_analytics, bulk_transactions
-    """
     operation = event.get('operation')
     items = event.get('items', [])
     
@@ -370,19 +289,7 @@ def lambda_batch_handler(event, context):
             'body': json.dumps({'error': str(e)})
         }
 
-
-# ============== Utility Functions ==============
-
 def run_parallel_tasks(tasks: Dict[str, Callable]) -> Dict[str, Any]:
-    """
-    Run multiple independent tasks in parallel
-    
-    Args:
-        tasks: Dict of {task_name: callable}
-    
-    Returns:
-        Dict of {task_name: result}
-    """
     results = {}
     
     with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
@@ -390,7 +297,6 @@ def run_parallel_tasks(tasks: Dict[str, Callable]) -> Dict[str, Any]:
             executor.submit(task): name
             for name, task in tasks.items()
         }
-        
         for future in as_completed(future_to_name):
             name = future_to_name[future]
             try:

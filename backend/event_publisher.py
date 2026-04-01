@@ -1,8 +1,3 @@
-"""
-Event Publisher Module
-Publishes events to SQS queues for async/parallel processing
-"""
-
 import boto3
 import json
 import os
@@ -13,7 +8,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
-# AWS Configuration
 REGION = os.environ.get('AWS_REGION', 'eu-west-1')
 STOCK_EVENTS_QUEUE = os.environ.get('STOCK_EVENTS_QUEUE_URL', '')
 TRANSACTION_EVENTS_QUEUE = os.environ.get('TRANSACTION_EVENTS_QUEUE_URL', '')
@@ -21,13 +15,7 @@ NOTIFICATION_EVENTS_QUEUE = os.environ.get('NOTIFICATION_EVENTS_QUEUE_URL', '')
 
 sqs = boto3.client('sqs', region_name=REGION)
 
-
 class EventPublisher:
-    """
-    Publishes events to SQS queues
-    Supports batch publishing for high throughput
-    """
-    
     def __init__(self):
         self.queues = {
             'stock': STOCK_EVENTS_QUEUE,
@@ -36,7 +24,6 @@ class EventPublisher:
         }
     
     def publish(self, queue_name: str, event: Dict[str, Any]) -> bool:
-        """Publish a single event to specified queue"""
         queue_url = self.queues.get(queue_name)
         if not queue_url:
             logger.warning(f"Queue {queue_name} not configured")
@@ -67,18 +54,14 @@ class EventPublisher:
             return False
     
     def publish_batch(self, queue_name: str, events: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Publish multiple events to a queue in batches
-        SQS supports up to 10 messages per batch
-        """
+        
         queue_url = self.queues.get(queue_name)
         if not queue_url:
             return {'successful': 0, 'failed': len(events)}
         
         successful = 0
         failed = 0
-        
-        # Process in batches of 10
+
         for i in range(0, len(events), 10):
             batch = events[i:i+10]
             entries = []
@@ -112,10 +95,7 @@ class EventPublisher:
         return {'successful': successful, 'failed': failed}
     
     def publish_parallel(self, events_by_queue: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
-        """
-        Publish to multiple queues in parallel
-        events_by_queue: {'stock': [...], 'transaction': [...], 'notification': [...]}
-        """
+        
         results = {}
         
         with ThreadPoolExecutor(max_workers=3) as executor:
@@ -136,19 +116,14 @@ class EventPublisher:
         
         return results
 
-
-# Singleton instance
 _publisher = None
 
 def get_publisher() -> EventPublisher:
-    """Get singleton publisher instance"""
+    
     global _publisher
     if _publisher is None:
         _publisher = EventPublisher()
     return _publisher
-
-
-# ============== Convenience Functions ==============
 
 def publish_stock_event(
     event_type: str,
@@ -157,7 +132,7 @@ def publish_stock_event(
     quantity: int,
     **kwargs
 ) -> bool:
-    """Publish a stock event (STOCK_IN, STOCK_OUT, STOCK_TRANSFER, LOW_STOCK_TRIGGERED)"""
+    
     event = {
         'event_type': event_type,
         'product_id': product_id,
@@ -167,7 +142,6 @@ def publish_stock_event(
     }
     return get_publisher().publish('stock', event)
 
-
 def publish_transaction_event(
     event_type: str,
     transaction_id: str,
@@ -176,7 +150,7 @@ def publish_transaction_event(
     total_amount: float,
     **kwargs
 ) -> bool:
-    """Publish a transaction event (PURCHASE_CREATED, SALE_COMPLETED, etc.)"""
+    
     event = {
         'event_type': event_type,
         'transaction_id': transaction_id,
@@ -187,7 +161,6 @@ def publish_transaction_event(
     }
     return get_publisher().publish('transaction', event)
 
-
 def publish_notification_event(
     notification_type: str,
     subject: str,
@@ -195,7 +168,7 @@ def publish_notification_event(
     recipient: str = None,
     **kwargs
 ) -> bool:
-    """Publish a notification event"""
+    
     event = {
         'event_type': 'NOTIFICATION',
         'notification_type': notification_type,
@@ -206,7 +179,6 @@ def publish_notification_event(
     }
     return get_publisher().publish('notification', event)
 
-
 def publish_low_stock_alert(
     product_id: str,
     product_name: str,
@@ -214,10 +186,9 @@ def publish_low_stock_alert(
     current_quantity: int,
     threshold: int
 ) -> bool:
-    """Convenience function for low stock alerts - publishes to both stock and notification queues"""
-    publisher = get_publisher()
     
-    # Stock event
+    publisher = get_publisher()
+
     stock_event = {
         'event_type': 'LOW_STOCK_TRIGGERED',
         'product_id': product_id,
@@ -226,8 +197,7 @@ def publish_low_stock_alert(
         'current_quantity': current_quantity,
         'threshold': threshold
     }
-    
-    # Notification event
+
     notification_event = {
         'event_type': 'NOTIFICATION',
         'notification_type': 'warning',
@@ -236,8 +206,7 @@ def publish_low_stock_alert(
         'product_id': product_id,
         'action_url': f'/inventory?product={product_id}'
     }
-    
-    # Publish in parallel
+
     results = publisher.publish_parallel({
         'stock': [stock_event],
         'notification': [notification_event]

@@ -60,7 +60,7 @@ export default function DashboardPage() {
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h2>
 
-      {/* Stat Cards */}
+      {}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
           title="Total Products"
@@ -103,9 +103,9 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Charts */}
+      {}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Products Bar Chart */}
+        {}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h3 className="text-lg font-semibold mb-4">Top Selling Products</h3>
           {topProducts.length > 0 ? (
@@ -123,7 +123,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Top Products Pie Chart */}
+        {}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h3 className="text-lg font-semibold mb-4">Sales Distribution</h3>
           {topProducts.length > 0 ? (

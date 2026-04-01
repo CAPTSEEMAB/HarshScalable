@@ -35,7 +35,6 @@ export default function ExternalApisPage() {
   const [batchResult, setBatchResult] = useState<any>(null);
   const [loading, setLoading] = useState<string | null>(null);
 
-  // Form states
   const [weatherCity, setWeatherCity] = useState('London');
   const [currencyAmount, setCurrencyAmount] = useState(100);
   const [currencyFrom, setCurrencyFrom] = useState('USD');
@@ -48,8 +47,7 @@ export default function ExternalApisPage() {
       const res = await externalAPI.weather(weatherCity);
       setWeather(res.data);
     } catch (e) {
-      console.error(e);
-    }
+          }
     setLoading(null);
   };
 
@@ -59,8 +57,7 @@ export default function ExternalApisPage() {
       const res = await externalAPI.currency(currencyFrom, currencyTo, currencyAmount);
       setCurrency(res.data);
     } catch (e) {
-      console.error(e);
-    }
+          }
     setLoading(null);
   };
 
@@ -70,8 +67,7 @@ export default function ExternalApisPage() {
       const res = await externalAPI.countries(countryName);
       setCountry(res.data);
     } catch (e) {
-      console.error(e);
-    }
+          }
     setLoading(null);
   };
 
@@ -85,8 +81,7 @@ export default function ExternalApisPage() {
       ]);
       setBatchResult(res.data);
     } catch (e) {
-      console.error(e);
-    }
+          }
     setLoading(null);
   };
 
@@ -106,7 +101,7 @@ export default function ExternalApisPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Weather API Card */}
+        {}
         <div className="bg-white rounded-xl border p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center gap-2 mb-4">
             <Cloud className="text-blue-500" size={24} />
@@ -144,7 +139,7 @@ export default function ExternalApisPage() {
           )}
         </div>
 
-        {/* Currency API Card */}
+        {}
         <div className="bg-white rounded-xl border p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center gap-2 mb-4">
             <DollarSign className="text-green-500" size={24} />
@@ -204,7 +199,7 @@ export default function ExternalApisPage() {
           )}
         </div>
 
-        {/* Countries API Card */}
+        {}
         <div className="bg-white rounded-xl border p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center gap-2 mb-4">
             <Globe className="text-purple-500" size={24} />
@@ -244,7 +239,7 @@ export default function ExternalApisPage() {
         </div>
       </div>
 
-      {/* Parallel Processing Demo */}
+      {}
       <div className="bg-white rounded-xl border p-6">
         <div className="flex items-center gap-2 mb-4">
           <Zap className="text-yellow-500" size={24} />
@@ -286,7 +281,7 @@ export default function ExternalApisPage() {
         )}
       </div>
 
-      {/* Info Box */}
+      {}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
         <h4 className="font-semibold text-blue-800 mb-2">Assignment Requirements Met</h4>
         <ul className="text-sm text-blue-700 space-y-1">
